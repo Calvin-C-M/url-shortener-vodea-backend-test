@@ -1,26 +1,36 @@
 import { Response, Request } from "express"
-import { nanoid } from "nanoid"
 import { getDatabase } from "../utils/database"
-import { HTTPResponse } from "../models/HTTPResponse"
+import { HTTPResponse } from "../class/HTTPResponse"
 import dotenv from "dotenv"
+import { handleUrlId } from "../utils/url"
 dotenv.config()
 
 export async function ShortenUrl(req: Request, res: Response) {
     const body: {
-        originUrl: string
+        originUrl: string,
+        customId?: string
     } = await req.body
 
-    try {
-        const baseURL = process.env.BASE_URL
-        const uid = nanoid(6)
-        const shortUrl = `${baseURL}/${uid}`
+    const uid = handleUrlId(body.customId)
+    if(uid == "") {
+        return new HTTPResponse(
+            400,
+            "URL gagal diperpendek",
+            [],
+            "URL tidak boleh melebihi 16 karakter"
+        ).Response(res)
+    }
 
-        const currentDate = new Date()
-        const expireDate = new Date(
-            currentDate.getFullYear() + 5,
-            currentDate.getMonth(),
-            currentDate.getDate(),
-        )
+    const baseURL = process.env.BASE_URL
+    const shortUrl = `${baseURL}/${uid}`
+    const currentDate = new Date()
+    const expireDate = new Date(
+        currentDate.getFullYear() + 5,
+        currentDate.getMonth(), 
+        currentDate.getDate(),
+    )
+
+    try {
 
         const database = await getDatabase()
         
