@@ -3,7 +3,10 @@ import { getDatabase } from "../utils/database"
 import { HTTPResponse } from "../class/HTTPResponse"
 import dotenv from "dotenv"
 import { handleUrlId } from "../utils/url"
+import { URL } from "../types/Url"
 dotenv.config()
+
+const COLLECTION_NAME = "url"
 
 export async function ShortenUrl(req: Request, res: Response) {
     const body: {
@@ -34,7 +37,7 @@ export async function ShortenUrl(req: Request, res: Response) {
 
         const database = await getDatabase()
         
-        const findUrl = database.collection("url").findOne({
+        const findUrl = database.collection(COLLECTION_NAME).findOne({
             idUrl: uid
         })
 
@@ -47,11 +50,14 @@ export async function ShortenUrl(req: Request, res: Response) {
             ).Response(res)
         }
 
-        const insertNewUrl = await database.collection("url").insertOne({
+        const urlData:URL = {
+            idUrl: uid,
             originalUrl: body.originUrl,
             shortenedUrl: shortUrl,
             expireDate: expireDate,
-        })
+        }
+
+        const insertNewUrl = await database.collection(COLLECTION_NAME).insertOne(urlData)
 
         if(insertNewUrl.acknowledged) {
             return new HTTPResponse(
@@ -73,6 +79,37 @@ export async function ShortenUrl(req: Request, res: Response) {
 
     } catch(err) {
         console.error(err)
+        return new HTTPResponse(
+            500,
+            "INTERNAL SERVER ERROR",
+            [],
+            (err as Error).message
+        ).Response(res)
+    }
+}
+
+export async function RedirectUrl(req: Request, res: Response) {
+    const urlId = req.params.uid
+
+    try {
+        const database = await getDatabase()
+        const findUrl = await database.collection(COLLECTION_NAME).findOne({
+            idUrl: urlId
+        })
+
+        if(findUrl) {
+            return res.redirect(findUrl.originalUrl)
+        } else {
+            return new HTTPResponse(
+                404,
+                "Gagal redirect",
+                [],
+                "URL tidak dapat ditemukan"
+            ).Response(res)
+        }
+    } catch(err) {
+        console.error(err)
+
         return new HTTPResponse(
             500,
             "INTERNAL SERVER ERROR",
